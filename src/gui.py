@@ -4,12 +4,15 @@ import threading
 import schedule
 import time
 from capture_photo import capture_photo
+import pystray
+from PIL import Image, ImageDraw
 
 class WebcamApp(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
         self.save_dir = None
+        self.tray_icon = None
 
     def initUI(self):
         self.setWindowTitle("Webcam Memory App")
@@ -39,6 +42,7 @@ class WebcamApp(QWidget):
             return
         self.label.setText("Capturing photos every 10 seconds...")
         self.hide()  # Minimize the dialog box
+        self.create_tray_icon()
         schedule.every(10).seconds.do(lambda: capture_photo(self.save_dir))
         thread = threading.Thread(target=self.run_scheduler, daemon=True)
         thread.start()
@@ -47,6 +51,26 @@ class WebcamApp(QWidget):
         while True:
             schedule.run_pending()
             time.sleep(1)
+
+    def create_tray_icon(self):
+        image = Image.new('RGB', (64, 64), (255, 255, 255))
+        draw = ImageDraw.Draw(image)
+        draw.rectangle((0, 0, 64, 64), fill=(0, 0, 0))
+        self.tray_icon = pystray.Icon("Webcam Memory App", image, "Webcam Memory App", self.create_menu())
+        threading.Thread(target=self.tray_icon.run, daemon=True).start()
+
+    def create_menu(self):
+        return pystray.Menu(
+            pystray.MenuItem("Show", self.show_app),
+            pystray.MenuItem("Exit", self.exit_app)
+        )
+
+    def show_app(self, icon, item):
+        self.show()
+
+    def exit_app(self, icon, item):
+        self.tray_icon.stop()
+        QApplication.quit()
 
 app = QApplication(sys.argv)
 window = WebcamApp()
